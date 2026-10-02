@@ -2,7 +2,7 @@
 
 个人本机工具技能集（ZCode / Claude Code 兼容插件）。以插件形式分发，绕开宿主对用户级 `~/.zcode/skills` 的暴露限制——插件层技能在每个会话都会进入智能体的可用列表。
 
-## 技能清单（6 个）
+## 技能清单（7 个）
 
 | 技能 | 用途 |
 |---|---|
@@ -12,6 +12,7 @@
 | `trafilatura` | 静态网页正文降噪抽取（URL 直抓 / 本地 HTML 两条路径） |
 | `ast-grep` | 按语法结构（AST）检索与批量改写代码，30+ 语言 |
 | `bwrap-run` | bubblewrap 沙箱隔离执行不可信第三方代码（根只读、默认断网） |
+| `remote-compute` | 调用性能本算力：ssh wsl 跑计算（bash+CUDA）、ssh win 管 Windows、wsl-sudo 提权 |
 
 技能内容为本机定制：工具路径（`~/.local/bin/*`）、venv 位置（`~/.venvs/mineru`、`~/.venvs/autoc`）均为个人机器实况，换机需自行调整。
 
@@ -38,4 +39,5 @@ https://github.com/r-y-ren/my-plugin.git
 marketplace.json          # 市场清单（本仓库既是市场也是插件，source: "./"）
 .zcode-plugin/plugin.json # 插件清单（无 skills 字段 → 默认读 skills/ 目录）
 skills/<技能名>/SKILL.md
+skills/<技能名>/scripts/    # 可选：helper 脚本（remote-compute 的 wsl-sudo 等）
 ```

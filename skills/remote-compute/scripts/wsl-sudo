@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# 在性能本 WSL（~/.ssh/config 的 Host wsl）上执行 sudo 命令，密码自凭据文件取。
+# 用法：wsl-sudo 'systemctl status ssh'
+set -euo pipefail
+source "$HOME/.config/remote-compute/env"
+if [ $# -lt 1 ]; then echo "用法: wsl-sudo '<命令>'" >&2; exit 2; fi
+case "$FW_PASS" in
+  \<*|'') echo "错误：请先把 FW_PASS 填进 ~/.config/remote-compute/env" >&2; exit 2 ;;
+esac
+# 密码经 base64 过通道，避免特殊字符被远端 shell 解释；
+# 整条命令包进 sh -c 作为单一参数，保证 && 链里每一段都提权（命令内避免再用单引号）
+b64=$(printf %s "$FW_PASS" | base64 -w0)
+exec ssh wsl "printf %s '$b64' | base64 -d | sudo -S -p '' /bin/sh -c '$1'"

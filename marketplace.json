@@ -1,14 +1,14 @@
 {
   "name": "my-plugin",
-  "description": "个人本机工具技能集：文档解析、大表 SQL、网页正文、AST 代码检索、沙箱执行 + 路由向导",
+  "description": "个人本机工具技能集：文档解析、大表 SQL、网页正文、AST 代码检索、沙箱执行、远程算力调用 + 路由向导",
   "owner": {
     "name": "r-y-ren"
   },
   "plugins": [
     {
       "name": "my-plugin",
-      "description": "六个本机工具技能：toolbox（工具路由向导）、mineru（22 类文档转 Markdown）、duckdb（CSV/Parquet/JSON 大表 SQL 聚合）、trafilatura（静态网页正文降噪）、ast-grep（AST 结构化代码检索与批量改写）、bwrap-run（bubblewrap 沙箱执行不可信代码）。",
-      "version": "0.1.0",
+      "description": "七个本机技能：toolbox（工具路由向导）、mineru（22 类文档转 Markdown）、duckdb（CSV/Parquet/JSON 大表 SQL 聚合）、trafilatura（静态网页正文降噪）、ast-grep（AST 结构化代码检索与批量改写）、bwrap-run（bubblewrap 沙箱执行不可信代码）、remote-compute（调用性能本算力：ssh wsl/win + wsl-sudo）。",
+      "version": "0.2.0",
       "source": "./"
     }
   ]
