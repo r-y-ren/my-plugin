@@ -1,6 +1,6 @@
 {
   "name": "my-plugin",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "本机工具技能集：toolbox 路由向导 + mineru 文档解析 / duckdb 大表 SQL / trafilatura 网页正文抽取 / ast-grep 结构化代码检索 / bwrap-run 不可信代码沙箱执行 / remote-compute 远程算力调用。技能内容为个人机器定制（工具路径、venv 位置均为本机实况）。",
   "homepage": "https://github.com/r-y-ren/my-plugin",
   "repository": "https://github.com/r-y-ren/my-plugin",

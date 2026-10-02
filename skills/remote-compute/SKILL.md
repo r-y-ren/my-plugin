@@ -21,6 +21,7 @@ ssh wsl 'python ~/train.py'                            # 远程跑计算
 ssh wsl 'nohup python ~/train.py > ~/log.txt 2>&1 &'   # 长任务必须分离（nohup/setsid）
 scp 模型.zip wsl:~/                                     # 传文件；WSL 里有 rsync 可增量
 wsl-sudo 'systemctl restart ssh'                       # 提权（命令内勿用单引号）
+ssh win 'wsl -d Ubuntu --exec /bin/true'               # WSL 掉了自动拉起（注销会带走实例）
 ssh wsl '/usr/lib/wsl/lib/nvidia-smi -L'               # GPU 现场确认（nvidia-smi 不在 PATH）
 ```
 
@@ -30,7 +31,11 @@ ssh wsl '/usr/lib/wsl/lib/nvidia-smi -L'               # GPU 现场确认（nvid
 grep -q '^Host wsl' ~/.ssh/config && test -x ~/.local/bin/wsl-sudo && echo cfg-ok; ssh -o BatchMode=yes -o ConnectTimeout=8 wsl 'echo ok'
 ```
 
-期望：`cfg-ok` 与 `ok` 两行。缺 `cfg-ok` = 本机配置丢，按"重建"节恢复；缺 `ok` = 链路断，按序分辨三因：① first 没开盖登录（WSL 随登录拉起）→ 登录即可；② 板 IP 漂移 → 修 hosts（见"网络前提"）；③ tailscaled 挂 → `ssh win` 看 Windows 服务。
+期望：`cfg-ok` 与 `ok` 两行。缺 `cfg-ok` = 本机配置丢，按"重建"节恢复。缺 `ok` 按序自查，**恢复动作自动执行、勿问用户**：
+
+1. `ssh win 'echo x'` 通、`ssh wsl` 不通 = WSL 实例退出（注销过/崩溃）→ `ssh win 'wsl -d Ubuntu --exec /bin/true'` 拉起，3 秒后重试（WSL 侧 sshd 随 systemd 自起，通常一次即恢复）
+2. `ssh win` 也不通 = first 睡眠/关机（叫人开盖；常开算力建议 `powercfg /change standby-timeout-ac 0`）或 tailnet 断（按"网络前提"核 hosts 的 board 条目、查 tailscaled）
+3. 仍不通 = WSL 内 sshd 异常 → `ssh win 'wsl -d Ubuntu -u root systemctl restart ssh'` 后重试
 
 ## 坑（实测 2026-10-03）
 
@@ -38,6 +43,7 @@ grep -q '^Host wsl' ~/.ssh/config && test -x ~/.local/bin/wsl-sudo && echo cfg-o
 - `nvidia-smi` 不在 WSL 的 PATH：一律 `/usr/lib/wsl/lib/nvidia-smi`
 - Windows 侧命令由 cmd.exe 执行：路径写 Windows 格式（`C:\...`）
 - ssh 断开会话可能带走子进程：长任务 nohup/setsid 分离
+- 注销（锁屏无碍）会带走 WSL 实例：`ssh wsl` 失败先按"自检"拉起恢复，勿直接报错
 - WSL sshd 固定 2222：mirrored 网络会与 Windows sshd 抢 22；`/run/sshd` 由 tmpfiles 持久化，缺目录 sshd 起不来
 
 ## 网络前提与维护点
