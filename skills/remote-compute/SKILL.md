@@ -33,9 +33,14 @@ grep -q '^Host wsl' ~/.ssh/config && test -x ~/.local/bin/wsl-sudo && echo cfg-o
 
 期望：`cfg-ok` 与 `ok` 两行。缺 `cfg-ok` = 本机配置丢，按"重建"节恢复。缺 `ok` 按序自查，**恢复动作自动执行、勿问用户**：
 
-1. `ssh win 'echo x'` 通、`ssh wsl` 不通 = WSL 实例退出（注销过/崩溃）→ `ssh win 'wsl -d Ubuntu --exec /bin/true'` 拉起，3 秒后重试（WSL 侧 sshd 随 systemd 自起，通常一次即恢复）
+1. `ssh win 'echo x'` 通、`ssh wsl` 不通 → **先鉴别再动手**（mirrored/tailscale 路径偶发瞬断时 VM 活着但 2222 连不上，会自愈；勿直接重启）：
+   - `ssh win 'wsl -d Ubuntu --list --running'` 在跑 = 路径抖动 → 等 30–60s 以 `ssh -o ConnectTimeout=30 wsl 'echo ok'` 重试，通常自愈
+   - 没跑 = 实例退出（注销过/崩溃）→ `ssh win 'wsl -d Ubuntu --exec /bin/true'` 拉起，3 秒后重试（sshd 随 systemd 自起）
+   - `wsl --list` 的 Stopped 读数会骗人，存活以 uptime 连续性 + Windows 本机 2222 端口实测为准
 2. `ssh win` 也不通 = first 睡眠/关机（叫人开盖；常开算力建议 `powercfg /change standby-timeout-ac 0`）或 tailnet 断（按"网络前提"核 hosts 的 board 条目、查 tailscaled）
 3. 仍不通 = WSL 内 sshd 异常 → `ssh win 'wsl -d Ubuntu -u root systemctl restart ssh'` 后重试
+
+重型任务起跑前先探活：`ssh -o ConnectTimeout=30 wsl 'echo ready'`。
 
 ## 坑（实测 2026-10-03）
 
@@ -44,6 +49,8 @@ grep -q '^Host wsl' ~/.ssh/config && test -x ~/.local/bin/wsl-sudo && echo cfg-o
 - Windows 侧命令由 cmd.exe 执行：路径写 Windows 格式（`C:\...`）
 - ssh 断开会话可能带走子进程：长任务 nohup/setsid 分离
 - 注销（锁屏无碍）会带走 WSL 实例：`ssh wsl` 失败先按"自检"拉起恢复，勿直接报错
+- WSL 空闲自灭（实测 2026-10-03）：VM 空闲即被回收、sshd 随之消失——根治 = `.wslconfig` 的 `[wsl2]` 加 `vmIdleTimeout=3600000`（WSL 2.4.11+），**改后必须 `wsl --shutdown` 才生效**；副作用 = 末次使用后 vmmem 驻留 1h，长期不用可手动 shutdown 回收
+- mirrored/tailscale 路径偶发 2222 瞬断（VM 活着但连不上，会自愈）：失败先按"自检"鉴别，勿重启、勿定性为掉线
 - WSL sshd 固定 2222：mirrored 网络会与 Windows sshd 抢 22；`/run/sshd` 由 tmpfiles 持久化，缺目录 sshd 起不来
 
 ## 网络前提与维护点
@@ -64,7 +71,7 @@ tailscale --socket=/run/ts-kvmhub/tailscaled.sock ping -c 2 100.100.0.6
 | tailnet 地址 | win/wsl 同为 `100.100.0.6`（first-prod） |
 | 入口 | `win`=:22/OSS；`wsl`=:2222/renyxin |
 | 算力 | RTX 4070 Laptop，WSL2 CUDA（/dev/dxg + libcuda） |
-| 凭据文件 | `~/.config/remote-compute/env`（600，wsl-sudo 读 FW_PASS） |
+| 凭据文件 | `~/.config/remote-compute/env`（600；FW_PASS=wsl-sudo 用、WIN_PASS=ssh win 备援） |
 | 本机身份 | rypc = 轻薄本（rypc-prod=100.100.0.5） |
 
 ## 重建（新机器一把过）
@@ -73,5 +80,5 @@ tailscale --socket=/run/ts-kvmhub/tailscaled.sock ping -c 2 100.100.0.6
 
 1. 本机：`scripts/wsl-sudo` → `~/.local/bin/`（700）；`scripts/env.template` 填值存 `~/.config/remote-compute/env`（600）；`~/.ssh/config` 加 `win`/`wsl` 两个 Host（值见环境事实）
 2. WSL 侧：sshd_config `Port 2222` + `systemctl disable --now ssh.socket` + `systemctl enable ssh`；`echo 'd /run/sshd 0755 root root' | sudo tee /etc/tmpfiles.d/sshd.conf`
-3. Windows 侧：OpenSSH Server（Automatic）；启动文件夹放 `wsl-boot.bat`（内容 `start /min "" wsl.exe -d Ubuntu --exec /bin/true`）；公钥入 `C:\ProgramData\ssh\administrators_authorized_keys`（icacls 收权）
+3. Windows 侧：OpenSSH Server（Automatic）；启动文件夹放 `wsl-boot.bat`（内容 `start /min "" wsl.exe -d Ubuntu --exec /bin/true`）；公钥入 `C:\ProgramData\ssh\administrators_authorized_keys`（icacls 收权）；`.wslconfig` 的 `[wsl2]` 写 `networkingMode=mirrored` + `vmIdleTimeout=3600000`（防空闲自灭），改完 `wsl --shutdown` 生效
 4. 入网：各端 hosts 加 `board` 条目；`tailscale up --login-server=https://board:8080 --accept-dns=false`（先信 CA，见 KVM 仓 INSTALL.md）
