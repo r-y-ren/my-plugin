@@ -1,6 +1,6 @@
 ---
 name: toolbox
-description: 本机工具技能路由向导——一表回答"这个任务该用哪个本地工具"：文档→mineru、大表→duckdb、网页正文→trafilatura、代码结构→ast-grep、不可信执行→bwrap-run、远程算力→remote-compute。可显式 /toolbox 调用；已明确该用哪个技能时直调该技能，勿经此向导二跳。
+description: 本机工具技能路由向导——一表回答"这个任务该用哪个本地工具"：文档→mineru、大表→duckdb、网页正文→trafilatura、代码结构→ast-grep、不可信执行→bwrap-run、远程算力→remote-compute、3D/Web 前端→web-3d-stack。可显式 /toolbox 调用；已明确该用哪个技能时直调该技能，勿经此向导二跳。
 ---
 
 # toolbox：本机工具技能路由
@@ -17,14 +17,15 @@ description: 本机工具技能路由向导——一表回答"这个任务该用
 | 代码结构检索/批量改写（按语法形状） | `ast-grep` | 排除：纯文本搜索 → rg |
 | 执行不可信第三方代码（参赛开源仓库/外来包运行段） | `bwrap-run` | 排除：自家工程日常编译测试不套 |
 | 远程算力（性能本 GPU/CPU：跑训练/重任务） | `remote-compute` | 排除：KVM-Hub 自身管理、本机轻任务 |
+| 3D/Web 前端（Three.js 场景·游戏 / WebGPU·TSL / shadcn·ui） | `web-3d-stack` | 排除：非 Web 图形（OpenGL/Vulkan 桌面原生）；其内部再分派见该技能路由表 |
 
 ## 自检（用即核验，陈旧当场暴露）
 
 ```bash
-ls ~/.zcode/skills/ | grep -vi 'eide\|fn-' ; command -v ast-grep duckdb trafilatura bwrap
+ls ~/.zcode/cli/plugins/cache/my-plugin/my-plugin/*/skills/ ; command -v ast-grep duckdb trafilatura bwrap
 ```
 
-期望：技能目录 = 本表六行技能（五工具 + remote-compute）+ 本技能自身（toolbox）；四个二进制都在。fn-ladder 系列（`fn-*` 与 `FN-LADDER.md`，插件或符号链接安装）不属工具路由范围，已随 EIDE 一并排除。任何不一致 = 本向导过期——以 `ls` 实况为准先修册面再继续用。
+期望：插件缓存技能目录 = 本表七行技能 + 本技能自身（toolbox）共八个；四个二进制都在。会话实况以插件缓存为准——用户层 `~/.zcode/skills` 旧原件已退役（宿主不暴露用户层技能），不在自检范围。任何不一致 = 本向导过期——以 `ls` 实况为准先修册面再继续用。
 
 ## 维护纪律
 

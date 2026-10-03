@@ -1,7 +1,7 @@
 {
   "name": "my-plugin",
-  "version": "0.2.2",
-  "description": "本机工具技能集：toolbox 路由向导 + mineru 文档解析 / duckdb 大表 SQL / trafilatura 网页正文抽取 / ast-grep 结构化代码检索 / bwrap-run 不可信代码沙箱执行 / remote-compute 远程算力调用。技能内容为个人机器定制（工具路径、venv 位置均为本机实况）。",
+  "version": "0.3.0",
+  "description": "八个技能：toolbox（工具路由向导）、mineru（22 类文档转 Markdown）、duckdb（CSV/Parquet/JSON 大表 SQL 聚合）、trafilatura（静态网页正文降噪）、ast-grep（AST 结构化代码检索与批量改写）、bwrap-run（bubblewrap 沙箱执行不可信代码）、remote-compute（性能本远程算力）、web-3d-stack（Web 3D/图形前端全家桶单技能路由：Three.js 基础+游戏、WebGPU/TSL、shadcn/ui，四上游 22 份文档收为内部参考）。 技能内容为个人机器定制（工具路径、venv 位置均为本机实况）；web-3d-stack 为上游聚合内容，无本机定制。",
   "homepage": "https://github.com/r-y-ren/my-plugin",
   "repository": "https://github.com/r-y-ren/my-plugin",
   "keywords": [
