@@ -7,7 +7,7 @@ description: 静态网页正文降噪抽取——去掉导航/广告/页脚，�
 
 **功能**：静态网页 → 干净 markdown 正文；导航/广告/页脚全剥离，支持 URL 直抓与本地 HTML 文件两条路径。
 
-本机经符号链接 `~/.local/bin/trafilatura` → `~/.venvs/autoc/bin/trafilatura`（2.2.0，autoc venv）。venv 升级自动跟随；若 `command -v trafilatura` 失效 = venv 迁移，用 `ln -sfn ~/.venvs/autoc/bin/trafilatura ~/.local/bin/trafilatura` 重建。
+工具走 PATH 直呼 `trafilatura`（bootstrap 部署：symlink `~/.local/bin/trafilatura` → venv 里的 CLI，venv 升级自动跟随）。`command -v trafilatura` 失效 = venv 挪了位置——重跑仓库根 `scripts/bootstrap.sh` 重建，或 `ln -sfn <venv>/bin/trafilatura ~/.local/bin/trafilatura`。
 
 ## 两条路径（均实测 2026-09-20）
 
@@ -18,10 +18,11 @@ trafilatura -u '<URL>' --markdown            # 正文 markdown
 trafilatura -u '<URL>' --markdown --links    # 保留链接
 ```
 
-**本地 HTML 文件**——注意 CLI 的 `-i` 吃的是"URL 清单文件"**不是** HTML 文档（整段 HTML 会被当 URL 丢弃），本地文件走 venv python：
+**本地 HTML 文件**——注意 CLI 的 `-i` 吃的是"URL 清单文件"**不是** HTML 文档（整段 HTML 会被当 URL 丢弃），本地文件走同 venv 的 python（从 CLI 实际位置推导，不写死 venv 路径）：
 
 ```bash
-~/.venvs/autoc/bin/python -c "import sys,trafilatura;print(trafilatura.extract(sys.stdin.read(),output_format='markdown'))" < page.html
+TRA=$(readlink -f "$(command -v trafilatura)")
+"$(dirname "$TRA")/python" -c "import sys,trafilatura;print(trafilatura.extract(sys.stdin.read(),output_format='markdown'))" < page.html
 ```
 
 ## 边界

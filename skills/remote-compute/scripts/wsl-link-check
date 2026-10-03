@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# WSL 链路诊断：一眼分清 实例被拆 / sshd 挂 / 路径抖动，附采样成功率。
+# 与 SKILL.md「自检」同一 win→wsl 顺序；发现实例没跑会直接经 win 拉起。
+# 用法: wsl-link-check [--samples N] [--interval S]   # 默认 10 次 / 3 秒
+set -euo pipefail
+samples=10 interval=3
+while [ $# -gt 0 ]; do case "$1" in
+  --samples) samples="${2:?}"; shift 2 ;;
+  --interval) interval="${2:?}"; shift 2 ;;
+  *) echo "用法: wsl-link-check [--samples N] [--interval S]" >&2; exit 2 ;;
+esac; done
+
+CFG="$HOME/.config/my-plugin/machine.env"
+[ -f "$CFG" ] && . "$CFG"
+DISTRO="${REMOTE_WSL_DISTRO:-Ubuntu}"
+WIN=${SSH_WIN_HOST:-win}
+W=${SSH_WSL_HOST:-wsl}
+ssh_try() { ssh -o BatchMode=yes -o ConnectTimeout=8 "$@"; }
+
+echo "== 1. win 入口 =="
+if ! ssh_try "$WIN" 'echo ok' >/dev/null 2>&1; then
+  echo "win: 不通 —— 算力机睡眠/关机或链路断，wsl 无从修起（叫人开盖/核 hosts/查 tailscaled）"; exit 1
+fi
+echo "win: 通"
+
+echo "== 2. 实例状态（win 侧权威视角）=="
+run=$(ssh_try "$WIN" "wsl -d $DISTRO --list --running" 2>/dev/null | tr -d '\0\r')
+if echo "$run" | grep -qi "$DISTRO"; then
+  echo "实例: 在跑"
+else
+  echo "实例: 没跑 → 经 win 拉起"
+  ssh_try "$WIN" "wsl -d $DISTRO --exec /bin/true" >/dev/null 2>&1 || true
+  sleep 3
+fi
+
+echo "== 3. $W 入口采样（${samples} 次 / ${interval}s）=="
+ok=0
+for i in $(seq 1 "$samples"); do
+  if ssh_try "$W" 'echo ok' >/dev/null 2>&1; then ok=$((ok+1)); printf '✓'; else printf '✗'; fi
+  [ "$i" -lt "$samples" ] && sleep "$interval"
+done
+echo
+echo "成功率: $ok/$samples"
+
+echo "== 4. 诊断 =="
+if [ "$ok" -eq "$samples" ]; then
+  echo "链路健康。历史断线按 SKILL「断线根因表」对号；持续监视 bootstrap --check"
+elif echo "$run" | grep -qi "$DISTRO" || [ "$ok" -gt 0 ]; then
+  echo "实例在但丢包 = 路径抖动（会自愈，勿重启）或 sshd 异常（wsl-sudo 'systemctl status ssh'）"
+else
+  echo "实例被反复拆 = 查持有器：ssh win 'schtasks /Query /TN wsl-hold' 应为 Running；详见 SKILL「断线根因表」"
+fi

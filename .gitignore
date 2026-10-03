@@ -1,0 +1,4 @@
+# 宿主工作区产物（含本机绝对路径，不入库）
+.v2c/
+.video_agent/
+.zcodeignore

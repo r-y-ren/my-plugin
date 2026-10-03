@@ -7,7 +7,7 @@ description: 本地大表 SQL 分析（单二进制免服务免装环境）—�
 
 **功能**：对 CSV/Parquet/JSON 大表直接跑 SQL——计数/分组/join/去重/抽样/导出；文件即表，不需要装服务或写加载代码。
 
-本机 `~/.local/bin/duckdb` 1.5.5（PATH 直呼 `duckdb`）。文件即表：SQL 里 `FROM 'data.csv'` 直接查，毫秒级出聚合——把"全量数据喂模型"降级为"聚合后只看 5 行"。
+工具走 PATH 直呼 `duckdb`（单二进制，bootstrap 部署到 `~/.local/bin/duckdb`；缺失跑仓库根 `scripts/bootstrap.sh`）。文件即表：SQL 里 `FROM 'data.csv'` 直接查，毫秒级出聚合——把"全量数据喂模型"降级为"聚合后只看 5 行"。
 
 ## 纪律
 

@@ -7,7 +7,7 @@ description: 按语法结构（AST）检索与批量改写代码——找"所有
 
 **功能**：按语法形状搜代码（"所有带返回注解的函数"这类结构问题）与批量改写（预览 diff 后落盘）。与 rg 的分工——rg 找文本，本工具找结构。
 
-本机 `~/.local/bin/ast-grep` 0.45.3（PATH 直呼 `ast-grep`）。语法树匹配，是 rg 的结构化补充——rg 找"文本"，ast-grep 找"代码形状"。
+工具走 PATH 直呼 `ast-grep`（单二进制，bootstrap 部署到 `~/.local/bin/ast-grep`；缺失跑仓库根 `scripts/bootstrap.sh`）。语法树匹配，是 rg 的结构化补充——rg 找"文本"，ast-grep 找"代码形状"。
 
 ## 何时用
 

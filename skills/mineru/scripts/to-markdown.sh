@@ -8,7 +8,9 @@
 # 用法: to-markdown.sh <输入文件> [-o 输出.md] [-p '1-5,8'|all]（-p 仅 PDF 有效）
 set -euo pipefail
 
-MINERU="$HOME/.venvs/mineru/bin/mineru"
+# 工具定位：PATH 优先（bootstrap 部署），venv 约定路径兜底
+MINERU=$(command -v mineru 2>/dev/null || true)
+[ -n "$MINERU" ] || MINERU="$HOME/.venvs/mineru/bin/mineru"
 input="" out="" pages="all"
 while [ $# -gt 0 ]; do
   case "$1" in

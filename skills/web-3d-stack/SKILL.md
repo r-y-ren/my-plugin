@@ -72,4 +72,4 @@ description: "现代 Web 3D/图形前端全家桶路由：Three.js（场景/相�
 | `refs/webgpu-tsl` | dgreenheck/webgpu-claude-skill | MIT（plugin.json 声明，仓库无 LICENSE 文件） |
 | `refs/shadcn` | shadcn-ui/ui `skills/` | MIT |
 
-同步上游：仓库根 `scripts/sync-upstream.sh`。
+同步上游：仓库根 `scripts/sync-web-3d-stack.sh`。本技能内容随仓库分发、无本机定制，换机零迁移成本。

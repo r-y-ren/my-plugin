@@ -16,19 +16,19 @@ description: 本机工具技能路由向导——一表回答"这个任务该用
 | 网页正文降噪（静态页 → markdown） | `trafilatura` | 排除：JS 渲染页 → 浏览器工具 |
 | 代码结构检索/批量改写（按语法形状） | `ast-grep` | 排除：纯文本搜索 → rg |
 | 执行不可信第三方代码（参赛开源仓库/外来包运行段） | `bwrap-run` | 排除：自家工程日常编译测试不套 |
-| 远程算力（性能本 GPU/CPU：跑训练/重任务） | `remote-compute` | 排除：KVM-Hub 自身管理、本机轻任务 |
+| 远程算力（远端算力机 GPU/CPU：跑训练/重任务） | `remote-compute` | 排除：组网设施自身管理、本机轻任务 |
 | 3D/Web 前端（Three.js 场景·游戏 / WebGPU·TSL / shadcn·ui） | `web-3d-stack` | 排除：非 Web 图形（OpenGL/Vulkan 桌面原生）；其内部再分派见该技能路由表 |
 
 ## 自检（用即核验，陈旧当场暴露）
 
 ```bash
-ls ~/.zcode/cli/plugins/cache/my-plugin/my-plugin/*/skills/ ; command -v ast-grep duckdb trafilatura bwrap
+ls ~/.zcode/cli/plugins/cache/my-plugin/my-plugin/*/skills/ ; command -v ast-grep duckdb trafilatura mineru bwrap
 ```
 
-期望：插件缓存技能目录 = 本表七行技能 + 本技能自身（toolbox）共八个；四个二进制都在。会话实况以插件缓存为准——用户层 `~/.zcode/skills` 旧原件已退役（宿主不暴露用户层技能），不在自检范围。任何不一致 = 本向导过期——以 `ls` 实况为准先修册面再继续用。
+期望：插件缓存技能目录 = 本表七行技能 + 本技能自身（toolbox）共八个；五个二进制都在。会话实况以插件缓存为准——用户层 `~/.zcode/skills` 旧原件已退役（宿主不暴露用户层技能），不在自检范围。任何不一致 = 本向导过期——以 `ls` 实况为准先修册面再继续用。
 
 ## 维护纪律
 
 1. **新增/移除全局技能必须同步本表与自检期望**。本向导只索引技能层：裸 CLI 想入册，先为它建技能。
-2. 二进制缺失时按对应技能"自检"节重建（如 trafilatura 符号链接）。
+2. 二进制缺失跑仓库根 `scripts/bootstrap.sh` 重建（幂等；迁移/重装见 `docs/MIGRATION.md`）。
 3. autoC 仓库内的增改另有 ENVIRONMENT 全局技能清单行联动登记。

@@ -5,7 +5,7 @@ description: 本地通用文档解析——PDF/扫描件/图片/Office/HTML/EPUB
 
 # MinerU：通用文档解析（转换 + 查阅）
 
-本机 MinerU 4（`~/.venvs/mineru`，standard 档 VLM 引擎，纯 CPU 约 0.5~1s/页）。**一切解析都在本地完成，文档不出本机**。
+MinerU 4 本地引擎（venv 部署、PATH 直呼 `mineru`；standard 档 VLM，纯 CPU 约 0.5~1s/页）。**一切解析都在本地完成，文档不出本机**。命令缺失 = 本机未部署，跑仓库根 `scripts/bootstrap.sh` 装（迁移/重装见 `docs/MIGRATION.md`）。
 
 ## 支持的输入（22 类，原生直通）
 
@@ -17,11 +17,13 @@ pdf｜图片（jpg/png/webp/tiff 等）｜docx·doc｜pptx·ppt｜xlsx·xls｜od
 
 ## 快速用法：wrapper 脚本（转换首选）
 
+`mineru-to-markdown`（部署副本在 `~/.local/bin/`，权威源在本技能 `scripts/to-markdown.sh`，bootstrap 同步）：
+
 ```bash
-~/.zcode/skills/mineru/scripts/to-markdown.sh 报告.pdf                  # → 同目录 报告.md
-~/.zcode/skills/mineru/scripts/to-markdown.sh 章程.docx -o /tmp/zc.md   # Office/HTML/EPUB 原生直通
-~/.zcode/skills/mineru/scripts/to-markdown.sh 大书.pdf -p '1-5'         # 先看目录/结构
-~/.zcode/skills/mineru/scripts/to-markdown.sh 扫描件.jpg                 # 图片直接 OCR
+mineru-to-markdown 报告.pdf                  # → 同目录 报告.md
+mineru-to-markdown 章程.docx -o /tmp/zc.md   # Office/HTML/EPUB 原生直通
+mineru-to-markdown 大书.pdf -p '1-5'         # 先看目录/结构
+mineru-to-markdown 扫描件.jpg                 # 图片直接 OCR
 ```
 
 ## 查阅循环：解析一次，之后按需读（核心增值）
@@ -29,11 +31,10 @@ pdf｜图片（jpg/png/webp/tiff 等）｜docx·doc｜pptx·ppt｜xlsx·xls｜od
 parse 会把文档自动入库缓存（同文件再 parse 秒回）。**已解析过的文档不要重复转换全文再整读**——用定位符按页读、按词搜：
 
 ```bash
-M=~/.venvs/mineru/bin/mineru
-$M list docs                                  # 拿文档 ID（含页数与自动提取的标题）
-$M read doc:<id>/tier:standard/page:4 --context 2          # 读第 4 页±2 页
-$M read doc:<id>/tier:standard/page:4 --format image -o /tmp/p4.png   # 直接吐页图
-$M search 评审要点 --type pdf                  # 跨已解析文档检索关键词
+mineru list docs                                  # 拿文档 ID（含页数与自动提取的标题）
+mineru read doc:<id>/tier:standard/page:4 --context 2          # 读第 4 页±2 页
+mineru read doc:<id>/tier:standard/page:4 --format image -o /tmp/p4.png   # 直接吐页图
+mineru search 评审要点 --type pdf                  # 跨已解析文档检索关键词
 ```
 
 - 定位符 `doc:<id>/tier:<档>/page:<N>`：**tier 段必填、顺序固定**（standard/basic 各有缓存时可任选档位读）；`$M read --help` 看全量
@@ -45,15 +46,14 @@ $M search 评审要点 --type pdf                  # 跨已解析文档检索关
 
 - 版面复杂 / 表格 / 扫描件 / 双栏 / 公式 → **MinerU**（本技能）
 - 只要纯文本、文档简单且很大（几百页+）→ `pdftotext <pdf> -` 更快
-- MinerU 不可用（venv 缺失等）→ 降级 `pdftotext`；扫描件降级 tesseract（本机 `~/.tessdata` 有 chi_sim+eng 用户包）
+- MinerU 不可用（未部署等）→ 降级 `pdftotext`；扫描件降级 tesseract（用户包 `~/.tessdata` 需含 chi_sim+eng，缺就装）
 
 ## 直接 CLI（高级场景）
 
 ```bash
-M=~/.venvs/mineru/bin/mineru
-$M server status || $M server start     # parse 不会自动拉服务，先确保服务在跑
-$M parse <pdf> -p all -o <out.md>       # 解析——默认只前 10 页，务必 -p all 或指定页
-$M parse <pdf> -p r3-r1 --force         # 倒数页码 / 强制重解析忽略缓存
+mineru server status || mineru server start   # parse 不会自动拉服务，先确保服务在跑
+mineru parse <pdf> -p all -o <out.md>         # 解析——默认只前 10 页，务必 -p all 或指定页
+mineru parse <pdf> -p r3-r1 --force           # 倒数页码 / 强制重解析忽略缓存
 ```
 
 `scan`/`watch`（目录批量摄入与监视）存在但**不建议用 watch**：常驻服务语义，且 blobs 缓存随服务 cwd 落盘；批量转换直接对 wrapper 循环调用。
