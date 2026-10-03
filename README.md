@@ -19,7 +19,7 @@
 
 ## web-3d-stack 上游同步
 
-两级同步链：四上游 → 聚合仓 [r-y-ren/web-3d-stack](https://github.com/r-y-ren/web-3d-stack)（跑其 `scripts/sync-upstream.sh` 并推送）→ 本仓（跑 `scripts/sync-web-3d-stack.sh`，拉聚合仓覆盖 `skills/web-3d-stack/` 与 `docs/licenses/`，自动提交）。同步后核对 toolbox 路由表与 web-3d-stack 分派描述是否仍一致。
+`scripts/sync-web-3d-stack.sh` 直连四上游（cloudai-x/threejs-skills、majidmanzarpour/threejs-game-skills、dgreenheck/webgpu-claude-skill、shadcn-ui/ui 的 `skills/`），重建 `skills/web-3d-stack/refs/` 并刷新 `docs/licenses/`，随后自动校验路由 SKILL.md 分派表引用的路径仍全部存在（上游改目录名会报错拦截），自动提交。上游新增/更名技能时，同步后手动更新 web-3d-stack 路由表与 toolbox 对应行。
 
 ## 安装（ZCode 桌面版）
 
