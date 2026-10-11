@@ -113,5 +113,6 @@ tailscale ping -c 2 "$REMOTE2_TAILNET"                                          
    - 电源常开：`powercfg /change standby-timeout-ac 0` + `powercfg /change hibernate-timeout-ac 0`
    - 其余照旧：OpenSSH Server（Automatic）；公钥入 `C:\ProgramData\ssh\administrators_authorized_keys`（icacls 收权）；`.wslconfig` 的 `[wsl2]` 写 `networkingMode=mirrored` + `vmIdleTimeout=3600000`（仅兜底），改完 `wsl --shutdown` 生效
 4. 入网：各端 hosts 加 `board` 条目；`tailscale up --login-server=<档案 NET_LOGIN_SERVER> --accept-dns=false`（先信 CA，见组网设施仓 INSTALL.md）；官方 tailnet 的机器改走 `tailscale up --accept-dns=false --hostname=<NICK>`（浏览器授权）
+5. 算力环境（可选，建在计算用户家目录、用户级装法）：Miniforge3 → `conda create -n compute python=<X> cuda-toolkit -c nvidia -c conda-forge`。两条实测坑（2026-10-11）：**工具链版本 ≤ 驱动支持的 CUDA 版本**（`/usr/lib/wsl/lib/nvidia-smi` 看 CUDA Version；超了 kernel JIT 报 "PTX was compiled with an unsupported toolchain"）；conda 新 gcc（15+）头文件 nvcc 解析不了 → `gcc/gxx_linux-64` pin 13，`nvcc -ccbin <env>/bin/x86_64-conda-linux-gnu-g++`。验收 = nvcc 编译最小 kernel 实跑输出正确
 
 **共用机（档案 `*_SHARED=1`）**：第 2/3 步照做（含持有器三件套）；WSL sshd 可用独立单元（档案 `*_SSH_WSL_SVC`，配置/密钥/日志在计算用户家目录）替代系统 sshd，归属清晰；NAT 拓扑靠 ProxyJump 别名进，不必动 `.wslconfig`（要动须先协调 `wsl --shutdown` 时机）。其余按「共用机纪律」。
