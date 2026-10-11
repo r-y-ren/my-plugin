@@ -4,7 +4,7 @@
 
 | 层 | 内容 | 谁保证成立 |
 |---|---|---|
-| **约定路径** | `~/.local/bin/*`（工具与 helper）、`~/.venvs/*`（venv）、`~/.config/my-plugin/`（机器档案）、`~/.config/remote-compute/`（凭据）、ssh 别名 `win`/`wsl` | `scripts/bootstrap.sh` 在任何机器重建，路径本身跨机不变 |
+| **约定路径** | `~/.local/bin/*`（工具与 helper）、`~/.venvs/*`（venv）、`~/.config/my-plugin/`（机器档案）、`~/.config/remote-compute/`（凭据）、ssh 别名 `win`/`wsl`（主力算力机）与 `<NICK>`/`<NICKw>`（第二台起） | `scripts/bootstrap.sh` 在任何机器重建，路径本身跨机不变 |
 | **机器档案** | 这台机器/这套远端是谁：主机昵称、tailnet 地址、账户、GPU、组网前提 | `~/.config/my-plugin/machine.env`（从 `docs/machine.env.example` 生成）——事实唯一来源 |
 
 技能里的命令模板（`ssh wsl …`、`mineru-to-markdown …`）因此在任何机器原样可跑；具体身份值（哪个 IP、哪个用户）读机器档案。
@@ -35,8 +35,8 @@ $EDITOR ~/.config/remote-compute/env               # 凭据：填 FW_PASS（wsl-
 1. 生成机器档案 `~/.config/my-plugin/machine.env`（已存在则保留）
 2. 装工具进 `~/.local/bin`：duckdb、ast-grep（官方 release 二进制）；mineru（venv `~/.venvs/mineru`，python3.12 优先，复用已有 venv）；trafilatura（优先复用 `~/.venvs/autoc`，否则独立 venv）；已在 PATH 的跳过
 3. 部署 helper：`wsl-sudo`（700）、`wsl-link-check`（755）、`mineru-to-markdown`（755）——权威源在 `skills/*/scripts/`，bootstrap 即"部署副本"同步
-4. 拷凭据模板 `~/.config/remote-compute/env`（600，不覆盖已有）；`~/.ssh/config` 补 `win`/`wsl` Host 块（只补缺的，值取机器档案，含保活参数）
-5. 跑全量自检（PATH、命令可用性、每技能功能探针、remote 链路 win→wsl 顺序探活 + `wsl-hold` 持有器存在性）
+4. 拷凭据模板 `~/.config/remote-compute/env`（600，不覆盖已有）；`~/.ssh/config` 补各算力机 Host 块（主力 `win`/`wsl`、第二台 `<NICK>`/`<NICKw>`，NAT 拓扑自动带 ProxyJump；只补缺的，值取机器档案，含保活参数）
+5. 跑全量自检（PATH、命令可用性、每技能功能探针、各算力机链路 win→wsl 顺序探活 + `wsl-hold` 持有器存在性（仅档案 `*_WSL_HOLD=1` 的机器））
 
 ### bootstrap 覆盖不了的（手操）
 
@@ -44,7 +44,7 @@ $EDITOR ~/.config/remote-compute/env               # 凭据：填 FW_PASS（wsl-
 |---|---|
 | 系统包 | bwrap（沙箱）/ soffice（Office 后备链）/ tesseract+chi_sim（OCR 降级）——用发行版包管理器装，缺失自检会报 |
 | MinerU 模型 | 首跑下载；国内源 `mineru-models-download -s modelscope`（HF 大文件在国内网络会卡死） |
-| remote-compute 远端面 | WSL sshd（含保活 drop-in）、Windows OpenSSH、**持有器三件套**（wsl-hold 任务 / wsl-boot.bat / 电源常开）、`.wslconfig`、tailnet 入网——见 remote-compute SKILL.md「重建」第 2–4 步 |
+| remote-compute 远端面 | WSL sshd（含保活 drop-in）、Windows OpenSSH、**持有器三件套**（wsl-hold 任务 / wsl-boot.bat / 电源常开）、`.wslconfig`、tailnet 入网——见 remote-compute SKILL.md「重建」第 2–4 步；共用机（档案 `*_WSL_HOLD=0`）偏离：不装持有器任务/启动项、独立 sshd 单元、ProxyJump 代 mirrored——见技能「重建」末段 |
 | 宿主侧安装 | ZCode 市场添加 + 插件安装启用（见 README「安装」） |
 
 ## 逐技能验收（自检命令 → 期望）
@@ -57,7 +57,7 @@ $EDITOR ~/.config/remote-compute/env               # 凭据：填 FW_PASS（wsl-
 | `trafilatura` | `trafilatura -u 'https://en.wikipedia.org/wiki/Challenge_Cup' --markdown \| head -3` | 非空正文（离线用本地 HTML 路径测） |
 | `ast-grep` | 技能「自检」节 | 输出匹配行 |
 | `bwrap-run` | 技能「自检」节 | `RO_OK`/`TMP_OK`/`NET_OK` |
-| `remote-compute` | 先 `ssh win 'echo win-ok'` 再 `ssh wsl 'echo ok'`（或 bootstrap --check 自动做）；分型诊断 `wsl-link-check` | `win-ok` 与 `ok`（wsl 不通时 bootstrap 会经 win 自动修复） |
+| `remote-compute` | 先 `ssh win 'echo win-ok'` 再 `ssh wsl 'echo ok'`（或 bootstrap --check 自动做，逐台遍历）；第二台同序 `ssh <NICK>`/`ssh <NICKw>`；分型诊断 `wsl-link-check [NICK]` | `win-ok` 与 `ok`（wsl 不通时 bootstrap 会经 win 自动修复；无持有器机器空闲后首次拒连属预期，拉起即恢复） |
 | `web-3d-stack` | `ls skills/web-3d-stack/refs/` | 四上游目录齐（内容随仓走，无需迁移动作） |
 | `toolbox` | 技能「自检」节 | 八技能 + 四二进制齐 |
 
@@ -74,4 +74,4 @@ $EDITOR ~/.config/remote-compute/env               # 凭据：填 FW_PASS（wsl-
 - `~/.local/bin` 不在 PATH：自检首项会 FAIL——把 `export PATH="$HOME/.local/bin:$PATH"` 写进 shell profile。
 - `trafilatura` 符号链接失效（venv 换了位置）：重跑 bootstrap，或 `ln -sfn <venv>/bin/trafilatura ~/.local/bin/trafilatura`。
 - 插件缓存带版本号路径（`~/.zcode/cli/plugins/cache/my-plugin/my-plugin/<ver>/…`）：不要在文档里写死它，技能内引用一律"本技能目录相对路径"或 PATH 命令。
-- ssh 别名 `win`/`wsl` 是约定名（技能命令模板靠它）：机器档案可以改 IP/用户/端口，别改别名。
+- ssh 别名 `win`/`wsl` 与派生名 `<NICK>`/`<NICKw>` 是约定名（技能命令模板靠它们）：机器档案可以改 IP/用户/端口，别改别名。

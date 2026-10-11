@@ -26,6 +26,30 @@ note() { printf '       → %s\n' "$*"; }
 
 # ~/.ssh/config 是否已有该 Host 别名（Host 行可并列多别名，按 token 精确判）
 have_host() { grep -E '^Host ' "$HOME/.ssh/config" 2>/dev/null | tr ' ' '\n' | grep -qx "$1"; }
+ssh_try() { ssh -o BatchMode=yes -o ConnectTimeout=8 "$@"; }
+
+# 一台算力机的两个 ssh Host 块（win 侧 + wsl 侧；NAT 拓扑 wsl 侧带 ProxyJump）
+# 参数：win别名 wsl别名 wsl主机名 wsl端口 wsl用户 win主机名 win用户 跳板(空=直连)
+add_machine_hosts() {
+  local jump=""
+  [ -n "$8" ] && jump="
+    ProxyJump $8"
+  have_host "$1" || block="$block
+Host $1
+    HostName $6
+    User $7
+    ServerAliveInterval 15
+    ServerAliveCountMax 4
+    TCPKeepAlive yes"
+  have_host "$2" || block="$block
+Host $2
+    HostName $3
+    Port $4
+    User $5${jump}
+    ServerAliveInterval 15
+    ServerAliveCountMax 4
+    TCPKeepAlive yes"
+}
 
 # ── 搭建（--check 跳过）─────────────────────────────────────────
 if [ "$CHECK_ONLY" -eq 0 ]; then
@@ -148,27 +172,21 @@ if [ "$CHECK_ONLY" -eq 0 ]; then
   fi
   ssh_cfg="$HOME/.ssh/config"
   block=""
-  have_host win || block="$block
-Host win
-    HostName ${REMOTE_TAILNET:-<REMOTE_TAILNET>}
-    User ${SSH_WIN_USER:-<SSH_WIN_USER>}
-    ServerAliveInterval 15
-    ServerAliveCountMax 4
-    TCPKeepAlive yes"
-  have_host wsl || block="$block
-Host wsl
-    HostName ${REMOTE_TAILNET:-<REMOTE_TAILNET>}
-    Port ${SSH_WSL_PORT:-2222}
-    User ${SSH_WSL_USER:-<SSH_WSL_USER>}
-    ServerAliveInterval 15
-    ServerAliveCountMax 4
-    TCPKeepAlive yes"
+  # 主力机（约定别名 win/wsl）+ 第二台起（别名 <NICK>/<NICKw>），值全取机器档案
+  add_machine_hosts "${SSH_WIN_HOST:-win}" "${SSH_WSL_HOST:-wsl}" \
+    "${SSH_WSL_HOSTNAME:-${REMOTE_TAILNET:-<REMOTE_TAILNET>}}" "${SSH_WSL_PORT:-2222}" "${SSH_WSL_USER:-<SSH_WSL_USER>}" \
+    "${REMOTE_TAILNET:-<REMOTE_TAILNET>}" "${SSH_WIN_USER:-<SSH_WIN_USER>}" "${SSH_WSL_JUMP:-}"
+  if [ -n "${REMOTE2_NICK:-}" ]; then
+    add_machine_hosts "${REMOTE2_SSH_WIN_HOST:-$REMOTE2_NICK}" "${REMOTE2_SSH_WSL_HOST:-${REMOTE2_NICK}w}" \
+      "${REMOTE2_SSH_WSL_HOSTNAME:-${REMOTE2_TAILNET:-<REMOTE2_TAILNET>}}" "${REMOTE2_SSH_WSL_PORT:-2222}" "${REMOTE2_SSH_WSL_USER:-<REMOTE2_SSH_WSL_USER>}" \
+      "${REMOTE2_TAILNET:-<REMOTE2_TAILNET>}" "${REMOTE2_SSH_WIN_USER:-<REMOTE2_SSH_WIN_USER>}" "${REMOTE2_SSH_WSL_JUMP:-}"
+  fi
   if [ -n "$block" ]; then
     mkdir -p "$HOME/.ssh" && touch "$ssh_cfg" && chmod 600 "$ssh_cfg"
     printf '\n# >>> my-plugin bootstrap（值来自机器档案；改档案后手工同步本块）>>>%s\n# <<< my-plugin bootstrap <<<\n' "$block" >> "$ssh_cfg"
-    note "ssh config 已补 win/wsl Host 块: $ssh_cfg"
+    note "ssh config 已补算力机 Host 块: $ssh_cfg"
   else
-    note "ssh config 的 win/wsl Host 已在，跳过"
+    note "ssh config 的算力机 Host 已在，跳过"
   fi
   echo
 fi
@@ -192,7 +210,7 @@ else
 fi
 
 if [ -f "$RC_CFG/env" ]; then
-  if grep -q "'<" "$RC_CFG/env" 2>/dev/null; then
+  if grep -v '^[[:space:]]*#' "$RC_CFG/env" 2>/dev/null | grep -q "'<"; then
     warn "remote 凭据" "$RC_CFG/env 还有 <…> 占位符 —— wsl-sudo 会拒跑"
   else
     ok "remote 凭据" "$RC_CFG/env"
@@ -247,51 +265,68 @@ if command -v mineru >/dev/null 2>&1; then
 fi
 
 # remote-compute 链路：先 win 后 wsl；wsl 不通但 win 通 → 经 win 自动修复（与 SKILL.md「自检」同序同 SOP）
-if have_host wsl && [ -x "$BIN/wsl-sudo" ]; then
-  ok "remote 配置" "Host wsl + wsl-sudo 就绪"
+if have_host "${SSH_WSL_HOST:-wsl}" && [ -x "$BIN/wsl-sudo" ]; then
+  ok "remote 配置" "Host ${SSH_WSL_HOST:-wsl} + wsl-sudo 就绪"
 else
-  warn "remote 配置" "缺 Host wsl 或 wsl-sudo（用不到 remote-compute 可忽略）"
+  warn "remote 配置" "缺 Host ${SSH_WSL_HOST:-wsl} 或 wsl-sudo（用不到 remote-compute 可忽略）"
 fi
-if command -v ssh >/dev/null 2>&1 && have_host win && have_host wsl; then
-  DISTRO="${REMOTE_WSL_DISTRO:-Ubuntu}"
-  ssh_try() { ssh -o BatchMode=yes -o ConnectTimeout=8 "$@"; }
-  if ! ssh_try win 'echo ok' >/dev/null 2>&1; then
-    warn "ssh win/wsl 链路" "win 不通 = 算力机睡眠/关机或链路断（叫人开盖/核 hosts 条目/查 tailscaled）——无修复通道，wsl 跳过"
+
+# 一台算力机的链路自检 + 自愈
+# 参数：win别名 wsl别名 发行版 sshd单元 持有器期望(1/0) 档案NICK
+check_link() {
+  local W1=$1 W2=$2 DISTRO=$3 SVC=$4 HOLD=$5 NICK=$6 repaired
+  if ! have_host "$W1" || ! have_host "$W2"; then
+    warn "remote 配置:$NICK" "缺 Host $W1/$W2 —— 跑 scripts/bootstrap.sh 生成"
+    return 0
+  fi
+  if ! ssh_try "$W1" 'echo ok' >/dev/null 2>&1; then
+    warn "ssh $W1/$W2 链路" "$NICK: $W1 不通 = 算力机睡眠/关机或链路断（叫人开盖/核 hosts 条目/查 tailscaled）——无修复通道，$W2 跳过"
+    return 0
+  fi
+  ok "ssh $W1 链路" "$NICK: ok"
+  # wsl-hold 持有器存在性（零客户端实例约 15~20 分钟即被拆的根治件，见 SKILL「断线根因表」）
+  if [ "$HOLD" = 1 ]; then
+    if ssh_try "$W1" 'schtasks /Query /TN wsl-hold' >/dev/null 2>&1; then
+      ok "wsl-hold 持有器" "$NICK: 计划任务在（5min 心跳）"
+    else
+      warn "wsl-hold 持有器" "$NICK: 缺持有器任务——实例会周期性被拆；按 remote-compute SKILL.md「重建」第 3 步建"
+    fi
   else
-    ok "ssh win 链路" "ok"
-    # wsl-hold 持有器存在性（零客户端实例约 15~20 分钟即被拆的根治件，见 SKILL「断线根因表」）
-    if ssh_try win 'schtasks /Query /TN wsl-hold' >/dev/null 2>&1; then
-      ok "wsl-hold 持有器" "计划任务在（5min 心跳）"
+    note "$NICK: 无持有器属预期（共用机档案 *_WSL_HOLD=0），空闲后实例会被回收——拉起即恢复"
+  fi
+  repaired=""
+  if ssh_try "$W2" 'echo ok' >/dev/null 2>&1; then
+    ok "ssh $W2 链路" "$NICK: ok"
+  else
+    # 先鉴别再动手（端口瞬断会自愈，勿直接重启）；恢复动作自动执行、勿问用户
+    if ssh_try "$W1" "wsl -d $DISTRO --list --running" 2>/dev/null | tr -d '\0\r' | grep -qi "$DISTRO"; then
+      note "$NICK: WSL 实例在跑但端口不通 = 路径抖动（会自愈），等 30s 重试"
+      sleep 30
+      ssh_try "$W2" 'echo ok' >/dev/null 2>&1 && repaired="抖动自愈"
     else
-      warn "wsl-hold 持有器" "缺持有器任务——实例会周期性被拆；按 remote-compute SKILL.md「重建」第 3 步建"
+      note "$NICK: WSL 实例没在跑（注销带走/崩溃/空闲回收），经 $W1 拉起 $DISTRO"
+      ssh_try "$W1" "wsl -d $DISTRO --exec /bin/true" >/dev/null 2>&1 || true
+      sleep 3
+      ssh_try "$W2" 'echo ok' >/dev/null 2>&1 && repaired="实例拉起后通"
     fi
-    repaired=""
-    if ssh_try wsl 'echo ok' >/dev/null 2>&1; then
-      ok "ssh wsl 链路" "ok"
+    if [ -z "$repaired" ]; then
+      note "$NICK: 仍不通 = WSL 内 sshd 异常，经 $W1 重启 $SVC 后重试"
+      ssh_try "$W1" "wsl -d $DISTRO -u root systemctl restart $SVC" >/dev/null 2>&1 || true
+      sleep 3
+      ssh_try "$W2" 'echo ok' >/dev/null 2>&1 && repaired="sshd 重启后通"
+    fi
+    if [ -n "$repaired" ]; then
+      ok "ssh $W2 链路" "$NICK: win 侧修复：$repaired"
     else
-      # 先鉴别再动手（2222 瞬断会自愈，勿直接重启）；恢复动作自动执行、勿问用户
-      if ssh_try win "wsl -d $DISTRO --list --running" 2>/dev/null | tr -d '\0\r' | grep -qi "$DISTRO"; then
-        note "WSL 实例在跑但 2222 不通 = 路径抖动（会自愈），等 30s 重试"
-        sleep 30
-        ssh_try wsl 'echo ok' >/dev/null 2>&1 && repaired="抖动自愈"
-      else
-        note "WSL 实例没在跑（注销带走/崩溃），经 win 拉起 $DISTRO"
-        ssh_try win "wsl -d $DISTRO --exec /bin/true" >/dev/null 2>&1 || true
-        sleep 3
-        ssh_try wsl 'echo ok' >/dev/null 2>&1 && repaired="实例拉起后通"
-      fi
-      if [ -z "$repaired" ]; then
-        note "仍不通 = WSL 内 sshd 异常，经 win 重启 sshd 后重试"
-        ssh_try win "wsl -d $DISTRO -u root systemctl restart ssh" >/dev/null 2>&1 || true
-        sleep 3
-        ssh_try wsl 'echo ok' >/dev/null 2>&1 && repaired="sshd 重启后通"
-      fi
-      if [ -n "$repaired" ]; then
-        ok "ssh wsl 链路" "win 侧修复：$repaired"
-      else
-        warn "ssh wsl 链路" "win 通但修不通——按 remote-compute SKILL.md「自检」第 1/3 步人工介入"
-      fi
+      warn "ssh $W2 链路" "$NICK: $W1 通但修不通——按 remote-compute SKILL.md「自检」第 1/3 步人工介入"
     fi
+  fi
+}
+
+if command -v ssh >/dev/null 2>&1 && have_host "${SSH_WIN_HOST:-win}" && have_host "${SSH_WSL_HOST:-wsl}"; then
+  check_link "${SSH_WIN_HOST:-win}" "${SSH_WSL_HOST:-wsl}" "${REMOTE_WSL_DISTRO:-Ubuntu}" "${SSH_WSL_SVC:-ssh}" "${SSH_WSL_HOLD:-1}" "${REMOTE_NICK:-主力机}"
+  if [ -n "${REMOTE2_NICK:-}" ]; then
+    check_link "${REMOTE2_SSH_WIN_HOST:-$REMOTE2_NICK}" "${REMOTE2_SSH_WSL_HOST:-${REMOTE2_NICK}w}" "${REMOTE2_WSL_DISTRO:-Ubuntu}" "${REMOTE2_SSH_WSL_SVC:-ssh}" "${REMOTE2_WSL_HOLD:-1}" "$REMOTE2_NICK"
   fi
 fi
 

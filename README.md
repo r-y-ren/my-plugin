@@ -12,7 +12,7 @@
 | `trafilatura` | 静态网页正文降噪抽取（URL 直抓 / 本地 HTML 两条路径） |
 | `ast-grep` | 按语法结构（AST）检索与批量改写代码，30+ 语言 |
 | `bwrap-run` | bubblewrap 沙箱隔离执行不可信第三方代码（根只读、默认断网） |
-| `remote-compute` | 调用远端算力机：ssh wsl 跑计算（bash+CUDA）、ssh win 管 Windows、wsl-sudo 提权、wsl-link-check 断线分型（持有器自愈链路，根因表见技能内） |
+| `remote-compute` | 调用远端算力机（支持多台）：ssh wsl 跑计算（bash+CUDA，第二台 ssh `<NICKw>`）、ssh win 管 Windows、wsl-sudo 提权、wsl-link-check 断线分型（持有器自愈链路，根因表见技能内） |
 | `web-3d-stack` | Web 3D/图形前端全家桶单技能路由：Three.js 基础/游戏、WebGPU·TSL、shadcn/ui（聚合四上游 22 份参考文档，子内容不独立暴露） |
 
 技能只写流程，机器状态分两层托管（详见 `docs/MIGRATION.md`）：**约定路径**（`~/.local/bin/*`、`~/.venvs/*` 等，`scripts/bootstrap.sh` 在任何机器重建）+ **机器档案**（`~/.config/my-plugin/machine.env`，主机/IP/账户/GPU 等事实唯一来源）。换机不再需要逐技能改内容。
