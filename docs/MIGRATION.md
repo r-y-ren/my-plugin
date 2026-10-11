@@ -44,7 +44,7 @@ $EDITOR ~/.config/remote-compute/env               # 凭据：填 FW_PASS（wsl-
 |---|---|
 | 系统包 | bwrap（沙箱）/ soffice（Office 后备链）/ tesseract+chi_sim（OCR 降级）——用发行版包管理器装，缺失自检会报 |
 | MinerU 模型 | 首跑下载；国内源 `mineru-models-download -s modelscope`（HF 大文件在国内网络会卡死） |
-| remote-compute 远端面 | WSL sshd（含保活 drop-in）、Windows OpenSSH、**持有器三件套**（wsl-hold 任务 / wsl-boot.bat / 电源常开）、`.wslconfig`、tailnet 入网——见 remote-compute SKILL.md「重建」第 2–4 步；共用机（档案 `*_WSL_HOLD=0`）偏离：不装持有器任务/启动项、独立 sshd 单元、ProxyJump 代 mirrored——见技能「重建」末段 |
+| remote-compute 远端面 | WSL sshd（含保活 drop-in）、Windows OpenSSH、**持有器三件套**（wsl-hold 任务 / wsl-boot.bat / 电源常开）、`.wslconfig`、tailnet 入网——见 remote-compute SKILL.md「重建」第 2–4 步；共用机（档案 `*_SHARED=1`）唯一约束=不动他人文件与运行进程，独立 sshd 单元/ProxyJump 等约定见技能「共用机纪律」 |
 | 宿主侧安装 | ZCode 市场添加 + 插件安装启用（见 README「安装」） |
 
 ## 逐技能验收（自检命令 → 期望）

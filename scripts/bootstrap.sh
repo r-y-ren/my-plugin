@@ -292,7 +292,7 @@ check_link() {
       warn "wsl-hold 持有器" "$NICK: 缺持有器任务——实例会周期性被拆；按 remote-compute SKILL.md「重建」第 3 步建"
     fi
   else
-    note "$NICK: 无持有器属预期（共用机档案 *_WSL_HOLD=0），空闲后实例会被回收——拉起即恢复"
+    note "$NICK: 无持有器（档案 *_WSL_HOLD=0，主动不装），空闲后实例会被回收——拉起即恢复"
   fi
   repaired=""
   if ssh_try "$W2" 'echo ok' >/dev/null 2>&1; then

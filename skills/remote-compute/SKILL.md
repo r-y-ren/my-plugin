@@ -63,7 +63,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=8 wsl 'echo ok'       # ② 再 wsl
 - Windows 侧命令由 cmd.exe 执行：路径写 Windows 格式（`C:\...`）
 - ssh 断开会话可能带走子进程：长任务 nohup/setsid 分离
 - 注销（锁屏无碍）会带走 WSL 实例：`ssh wsl` 失败先按"自检"拉起恢复，勿直接报错
-- WSL 空闲自灭（实测 2026-10-03）：零客户端实例被定时回收、sshd 随之消失——`vmIdleTimeout=3600000` **挡不住这条回收路径**（实测带它实例照样 15~20 分钟被拆）；根治 = 持有器（见「断线根因表」），`vmIdleTimeout` 仅兜底。副作用 = 末次使用后 vmmem 驻留，长期不用可 `ssh win 'wsl --shutdown'` 回收。共用机不装持有器的机器（`*_WSL_HOLD=0`）：这条回收**属预期**，唤醒即恢复，勿当故障排查
+- WSL 空闲自灭（实测 2026-10-03）：零客户端实例被定时回收、sshd 随之消失——`vmIdleTimeout=3600000` **挡不住这条回收路径**（实测带它实例照样 15~20 分钟被拆）；根治 = 持有器（见「断线根因表」），`vmIdleTimeout` 仅兜底。副作用 = 末次使用后 vmmem 驻留，长期不用可 `ssh win 'wsl --shutdown'` 回收。未装持有器的机器（`*_WSL_HOLD=0`）：这条回收**属预期**，唤醒即恢复，勿当故障排查
 - mirrored/tailscale 路径偶发 2222 瞬断（VM 活着但连不上，会自愈）：失败先按"自检"鉴别，勿重启、勿定性为掉线
 - WSL sshd 固定 2222：mirrored 网络会与 Windows sshd 抢 22；`/run/sshd` 由 tmpfiles 持久化，缺目录 sshd 起不来
 
@@ -77,7 +77,7 @@ ssh -o BatchMode=yes -o ConnectTimeout=8 wsl 'echo ok'       # ② 再 wsl
 | 2222 瞬断但 VM 活着（`--list --running` 显示在跑） | mirrored/tailscale 路径抖动，会自愈 | 「自检」第 1 步鉴别 SOP：在跑→等 30~60s 重试；勿直接重启 |
 | 注销带走实例 | VM 随用户会话生命周期 | `wsl-boot.bat`（启动文件夹）登录即拉持有器；锁屏无碍 |
 
-（表按持有器已装的机器定案，即档案 `*_WSL_HOLD=1`。共用机不装持有器的机器（`*_WSL_HOLD=0`）：第 1/5 行根治换成「唤醒 SOP + 长任务 nohup」，其余行照用。）
+（表按持有器已装的机器定案，即档案 `*_WSL_HOLD=1`。未装持有器的机器（`*_WSL_HOLD=0`）：第 1/5 行根治换成「唤醒 SOP + 长任务 nohup」，其余行照用。）
 
 排障一把梭：**`wsl-link-check`**（自动分型 + 采样成功率；实例没跑会当场经 win 拉起；`wsl-link-check <NICK>` 查第二台）。持有器状态查 `ssh win 'schtasks /Query /TN wsl-hold'`（应为 Running）。
 
@@ -93,13 +93,13 @@ tailscale ping -c 2 "$REMOTE2_TAILNET"                                          
 
 期望 pong（direct ~12ms 或 DERP）。全挂先拿板当前校园 IP 对 hosts。
 
-## 共用机纪律（档案 `*_WSL_HOLD=0` 的机器）
+## 共用机纪律（档案 `*_SHARED=1` 的机器）
 
-只做增量、可识别归属（专用计算账号、`<前缀>-*` 命名的服务/单元、独立端口）；**不动他人**：他人账号/conda、他人发行版、全局 sshd 配置、`.wslconfig`、防火墙。装环境一律建自己计算用户下的用户级环境。不装持有器三件套（不留计划任务/启动项），代价 = 空闲实例被回收，断线自愈走「自检」唤醒 SOP；长任务 nohup 分离。已存在的全局性变更（电源常开、Windows OpenSSH + 公钥、Tailscale）逐项报备可回滚。
+唯一硬约束（2026-10-11 定）：**不动他人的文件、不打断他人正在运行的进程**——其余随意。因此持有器三件套、电源常开、自有环境照常部署（服务/账号命名建议带归属如 `kvmhub-*`，便于他人辨识与清理）。唯一注意：`wsl --shutdown`（以及改 `.wslconfig`/发行版设置后的生效步骤）会带走全部 WSL 实例、打断他人进程——动它之前先确认他人没在跑东西或打招呼。已做过的全局变更（电源常开、Windows OpenSSH + 公钥、Tailscale、wsl-hold）逐项报备可回滚。
 
 ## 环境事实（换环境只改机器档案）
 
-事实不在本文件——**机器档案 `~/.config/my-plugin/machine.env` 是唯一来源**（bootstrap 从 `docs/machine.env.example` 生成；同人换机照抄旧机档案即可）。字段：本机/各算力机昵称与描述、`REMOTE*_TAILNET`（win/wsl 共用地址）、`SSH_WIN_*`/`SSH_WSL_*` 与 `REMOTE2_SSH_*`（别名、账户、端口）、`*_SSH_WSL_HOSTNAME`/`*_SSH_WSL_JUMP`（NAT 拓扑）、`*_SSH_WSL_SVC`（修复单元）、`*_WSL_HOLD`（持有器有无）、`REMOTE*_GPU`、`REMOTE*_WSL_DISTRO`、`REMOTE*_NET`、`NET_*` 组网项。命令模板里的 `win`/`wsl`/`<NICK>`/`<NICKw>` 是约定别名（bootstrap 生成的 ssh 配置块保证成立），具体身份值一律读档案。凭据另存 `~/.config/remote-compute/env`（600；FW_PASS=wsl-sudo 用、`FW_PASS_<NICK 大写>`=第二台提权、WIN_PASS=ssh win 备援；纯公钥机不设 WIN_PASS），与档案分离（事实可进 git 讨论，凭据永不）。
+事实不在本文件——**机器档案 `~/.config/my-plugin/machine.env` 是唯一来源**（bootstrap 从 `docs/machine.env.example` 生成；同人换机照抄旧机档案即可）。字段：本机/各算力机昵称与描述、`REMOTE*_TAILNET`（win/wsl 共用地址）、`SSH_WIN_*`/`SSH_WSL_*` 与 `REMOTE2_SSH_*`（别名、账户、端口）、`*_SSH_WSL_HOSTNAME`/`*_SSH_WSL_JUMP`（NAT 拓扑）、`*_SSH_WSL_SVC`（修复单元）、`*_WSL_HOLD`（持有器有无）、`*_SHARED`（共用机）、`REMOTE*_GPU`、`REMOTE*_WSL_DISTRO`、`REMOTE*_NET`、`NET_*` 组网项。命令模板里的 `win`/`wsl`/`<NICK>`/`<NICKw>` 是约定别名（bootstrap 生成的 ssh 配置块保证成立），具体身份值一律读档案。凭据另存 `~/.config/remote-compute/env`（600；FW_PASS=wsl-sudo 用、`FW_PASS_<NICK 大写>`=第二台提权、WIN_PASS=ssh win 备援；纯公钥机不设 WIN_PASS），与档案分离（事实可进 git 讨论，凭据永不）。
 
 ## 重建（新机器一把过）
 
@@ -114,4 +114,4 @@ tailscale ping -c 2 "$REMOTE2_TAILNET"                                          
    - 其余照旧：OpenSSH Server（Automatic）；公钥入 `C:\ProgramData\ssh\administrators_authorized_keys`（icacls 收权）；`.wslconfig` 的 `[wsl2]` 写 `networkingMode=mirrored` + `vmIdleTimeout=3600000`（仅兜底），改完 `wsl --shutdown` 生效
 4. 入网：各端 hosts 加 `board` 条目；`tailscale up --login-server=<档案 NET_LOGIN_SERVER> --accept-dns=false`（先信 CA，见组网设施仓 INSTALL.md）；官方 tailnet 的机器改走 `tailscale up --accept-dns=false --hostname=<NICK>`（浏览器授权）
 
-**共用机偏离（档案 `*_WSL_HOLD=0`）**：只做增量、命名带归属（见「共用机纪律」）；不装持有器三件套里的 schtasks/启动项（电源常开可保留）；WSL 侧不用系统 sshd，改独立 sshd 单元（档案 `*_SSH_WSL_SVC`，配置/密钥/日志在计算用户家目录）；不改 `.wslconfig`，NAT 拓扑靠 ProxyJump 别名进。
+**共用机（档案 `*_SHARED=1`）**：第 2/3 步照做（含持有器三件套）；WSL sshd 可用独立单元（档案 `*_SSH_WSL_SVC`，配置/密钥/日志在计算用户家目录）替代系统 sshd，归属清晰；NAT 拓扑靠 ProxyJump 别名进，不必动 `.wslconfig`（要动须先协调 `wsl --shutdown` 时机）。其余按「共用机纪律」。
